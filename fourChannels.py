@@ -107,22 +107,23 @@ plt.draw()
 
 raw_input("Press Enter to continue...")
 
-file = open('ch0.dat', 'w')
+file = open('testdata/ch0.raw', 'w')
 np.save(file,ch0)
-file = open('ch1.dat', 'w')
+file = open('testdata/ch1.raw', 'w')
 np.save(file,ch1)
-file = open('ch2.dat', 'w')
+file = open('testdata/ch2.raw', 'w')
 np.save(file,ch2)
-file = open('ch3.dat', 'w')
+file = open('testdata/ch3.raw', 'w')
 np.save(file,ch3)
 
-a = np.double(z)
-scaled = np.int16((a-2047)/2048 * 32767)
-print "scaled", scaled
-write('ch0.wav', 40000, scaled)
-write('ch1.wav', 40000, scaled)
-write('ch2.wav', 40000, scaled)
-write('ch3.wav', 40000, scaled)
+scaled0 = np.int16((np.double(ch0)-2047)/2048 * 32767)
+scaled1 = np.int16((np.double(ch1)-2047)/2048 * 32767)
+scaled2 = np.int16((np.double(ch2)-2047)/2048 * 32767)
+scaled3 = np.int16((np.double(ch3)-2047)/2048 * 32767)
+write('ch0.wav', 40000, scaled0)
+write('ch1.wav', 40000, scaled1)
+write('ch2.wav', 40000, scaled2)
+write('ch3.wav', 40000, scaled3)
 
 
 #message id
