@@ -63,7 +63,7 @@ plt.xlim(0,len(z));
 handle, = plt.plot(z)
 plt.draw()
 
-window_subset = 1000
+window_subset = 2000
 plt.figure("First subset")
 plt.ylim(0,4096);
 plt.xlim(0,window_subset);
@@ -78,7 +78,7 @@ np.save(file,z)
 a = np.double(z)
 scaled = np.int16((a-2047)/2048 * 32767)
 print "scaled", scaled
-write('test.wav', 80000, scaled)
+write('test.wav', 40000, scaled)
 
 
 #message id

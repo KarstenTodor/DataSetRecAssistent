@@ -4,7 +4,7 @@ Author: Elias Vansteenkiste
 
 
 #undef HID_ENABLED
-#define WINDOW_X512BYTES 1920
+#define WINDOW_X512BYTES 1000
 
 // Arduino Due ADC->DMA->USB 1MSPS
 // Input: Analog in A0
