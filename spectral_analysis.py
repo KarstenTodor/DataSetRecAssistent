@@ -1,6 +1,7 @@
 import serial 
 import time
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import hickle as hkl
 import thread
@@ -59,37 +60,65 @@ def plot_builtin_spectogram(filename,window,overlap,Fs=8000,offset=2048):
 
 def plot_spectogram(filename,window,overlap):
 	data, action =  read(filename)
+	print "action", action
 	data = data[0:56000]
 	windows = subsequences(data,window,overlap)
 
-	spectogram = np.fft.fft(windows*np.hamming(window))
+	dft = np.fft.fft(windows*np.hamming(window))
 
 	plt.ion()
 
-	magnitude = np.abs(spectogram)
+	magnitude = np.abs(dft)
 	#print 'histogram', np.histogram(magnitude,100)
 	#print magnitude.max().max()
 	#print magnitude.min().min()
-	plt.figure("Magnitude_w"+str(window)+"_o"+str(overlap))
-
+	plt.figure("Magnitude_w"+str(window)+"_o"+str(overlap)+" "+filename)
 	im1 = plt.imshow(magnitude[:,window-1-(window/10):window-1].transpose(),vmin=100 , vmax=1000, aspect='auto')
 	plt.colorbar(im1, orientation='horizontal')
 	plt.show()
 
-	angle = np.angle(spectogram)
+	angle = np.angle(dft)
 	#print 'histogram', np.histogram(angle,20)
 	#print angle.max().max()
 	#print angle.min().min()
-	plt.figure("Angle_w"+str(window)+"_o"+str(overlap))
+	plt.figure("Angle_w"+str(window)+"_o"+str(overlap)+" "+filename)
 	im2 = plt.imshow(angle.transpose(), aspect='auto')
 	plt.colorbar(im2, orientation='horizontal')
 	plt.show()
 
-plot_spectogram("testdata/elias3_ch1.raw",128,64)
-plot_spectogram("testdata/elias3_ch1.raw",256,128)
-plot_spectogram("testdata/elias3_ch1.raw",512,256)
-plot_spectogram("testdata/elias3_ch1.raw",1024,512)
+def plot_angle(filename,window,overlap):
+	data, action =  read(filename)
+	print "action", action
+	data = data[0:56000]
+	windows = subsequences(data,window,overlap)
 
+	dft = np.fft.fft(windows*np.hamming(window))
+	plt.ion()
+	angle = np.angle(dft)
+	#print 'histogram', np.histogram(angle,20)
+	#print angle.max().max()
+	#print angle.min().min()
+	plt.figure("Angle_w"+str(window)+"_o"+str(overlap)+" "+filename)
+	im2 = plt.imshow(angle.transpose(), aspect='auto')
+	plt.colorbar(im2, orientation='horizontal')
+	plt.show()
+
+mpl.rcParams['figure.max_open_warning'] = 40
+
+for i in range(3):
+	plot_spectogram("testdata/tim0_ch3.raw",128*(2**i),64*(2**i))
+
+for i in range(3):
+	plot_spectogram("testdata/tim1_ch3.raw",128*(2**i),64*(2**i))
+
+for i in range(3):
+	plot_spectogram("testdata/tim2_ch3.raw",128*(2**i),64*(2**i))
+
+for i in range(3):
+	plot_spectogram("testdata/tim3_ch3.raw",128*(2**i),64*(2**i))
+
+for i in range(3):
+	plot_spectogram("testdata/tim4_ch3.raw",128*(2**i),64*(2**i))
 
 
 raw_input("Press Enter to continue...")
