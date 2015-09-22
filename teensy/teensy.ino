@@ -5,19 +5,10 @@
 #include <string.h>
 #include "ADC.h" 
 
-#define BUF_SIZE 4*256
-//DMAMEM static uint16_t adcbuffer[BUF_SIZE];
-DMAMEM static volatile uint16_t __attribute__((aligned(BUF_SIZE+0))) adcbuffer[BUF_SIZE];
-
-//! Size of buffer
-uint16_t b_size = BUF_SIZE;
-//! write pointer: Read here
-uint16_t b_write = 0;
-
-unsigned long previousTime = 0;
-unsigned long interval = 10000;
-
 ADC *adc = new ADC(); // adc object
+
+volatile int ibuf;
+volatile int obuf;
 
 void setup() {
   char password[] = "start";
@@ -44,66 +35,63 @@ void setup() {
   
 
 }
+#define BUF_SIZE 256
+#define NO_BUFFERS 4
+//DMAMEM static uint16_t adcbuffer[BUF_SIZE];
+DMAMEM static volatile uint16_t __attribute__((aligned(BUF_SIZE+0))) adcbuffer[NO_BUFFERS][BUF_SIZE];
 
 void loop() {
 
-  int i,j;
   unsigned cycles;
-
-   // set up cycle counter
-  ARM_DEMCR |= ARM_DEMCR_TRCENA;
-  ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
   
   // clear buffer
-  for (i = 0; i < BUF_SIZE; ++i)
-      adcbuffer[i] = 0;
-      
-  Serial.println(adcbuffer[0]);
-  Serial.println(adcbuffer[1]);
- 
-  Serial.println("do dma");
-  setup_dma(23);  // 38 is temp sensor
-
-  while (adcbuffer[1] == 0) {};
-  cycles = ARM_DWT_CYCCNT;
-  while (adcbuffer[2] == 0) {};
-  
-
-  Serial.println(ARM_DWT_CYCCNT - cycles);
-
-#if 0
-  for(j=0;j<100;){
-    unsigned long currentTime = micros();
-    if(currentTime-previousTime>interval){
-      j++;
-      print_buffer();
+  for (int i = 0; i < NO_BUFFERS; ++i){
+    for (int j = 0; j < BUF_SIZE; ++j){
+      adcbuffer[i][j] = 50000;
     }
   }
-#endif
  
+  Serial.println("setup");
+  ibuf = 0;
+  obuf = 0;
+  setup_dma(23);  // 38 is temp sensor
+  setup_adc(23);
+
+  for (int i = 0; i < BUF_SIZE; ++i){
+    while(obuf==ibuf);
+    //Serial.write(0x00000000);
+    //Serial.write(0xFFFFFFFF);
+    //Serial.write(0x00000000);
+    Serial.write((uint8_t *)adcbuffer[obuf],512);
+    //Serial.write(0x00000000);
+    //Serial.write(0xFFFFFFFF);
+    //Serial.print(0x00000000);
+    obuf=(obuf+1)&3;
+  }
+  
   for (;;) {}
 
 }  // loop()
 
 
-void print_buffer(){
-  uint16_t buffer[BUF_SIZE];
-  uint8_t i;
-  Serial.println("Start reading buffer:");
-  
-  // copy results
-  memcpy((void *)buffer,(void *)adcbuffer,sizeof(adcbuffer));
-  
-  // display results - see how many samples we got
-  for (i = 0; i < b_size; ++i)
-      Serial.println(buffer[i]);
-}
 
+
+// #include "pdb.h"
 #include <DMAChannel.h>
 
-DMAChannel dma(false);
+
+DMAChannel* dma = new DMAChannel(false);
 
 void setup_dma(int pin) {
+
+  // Configure the ADC and run at least one software-triggered
+  // conversion.  This completes the self calibration stuff and
+  // leaves the ADC in a state that's mostly ready to use
+//  analogReadRes(16);
+//  analogReference(INTERNAL); // INTERNAL OR DEFAULT
+//  analogReadAveraging(32);
+//  analogRead(pin);
+//  delay(1);
 
 #if 0
   // set the programmable delay block to trigger DMA requests
@@ -115,22 +103,33 @@ void setup_dma(int pin) {
   PDB0_CH0C1 = 0x0101; // channel n control register?
 #endif
 
-  dma.begin(true);              // allocate the DMA channel first
-  dma.TCD->SADDR = &ADC0_RA;    // where to read from
-  dma.TCD->SOFF = 0;            // source increment each transfer
-  dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1);
-  dma.TCD->SLAST = 0;
+  dma->begin(true);              // allocate the DMA channel first
+  dma->TCD->SADDR = &ADC0_RA;    // where to read from
+  dma->TCD->SOFF = 0;            // source increment each transfer
+  dma->TCD->ATTR = DMA_TCD_ATTR_SSIZE(1);
+  dma->TCD->NBYTES_MLNO = 2;     // bytes per transfer
+  dma->TCD->SLAST = 0;
+
+  dma->destinationBuffer(adcbuffer[0], 512);   // destinaton sizeof(adcbuffer[0])
+  ibuf = 0;
+  dma->triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
+  dma->disableOnCompletion();    // require restart in code
+  dma->interruptAtCompletion();
+  dma->attachInterrupt(call_dma_isr);
   
-  dma.destinationCircular(adcbuffer, sizeof(adcbuffer));   // destinaton
-  dma.transferSize(2);     // bytes per transfer == TCD->NBYTES
-  dma.transferCount(1);
-  dma.interruptAtCompletion();
-  dma.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
-  //dma.disableOnCompletion();    // require restart in code
-  dma.enable();
-  dma.attachInterrupt(call_dma_isr);
+  dma->enable();
 
   
+
+  // start first one
+
+//  ADC0_SC2 |= ADC_SC2_DMAEN;  // using software trigger, ie writing to ADC0_SC1A
+//  ADC0_SC3 |= ADC_SC3_ADCO;
+//  ADC0_SC1A = get_pin(pin);   // set to hardware input channel
+  
+}  // setup_dma()
+
+void setup_adc(int pin) {
   adc->setAveraging(32); // set number of averages
   adc->setResolution(16); // set bits of resolution
   adc->setReference(INTERNAL);
@@ -139,28 +138,19 @@ void setup_dma(int pin) {
   
 } 
 
+
 void call_dma_isr(void) {
-    //write
-    Serial.println("write ptr value");
-    Serial.println(b_write);
-    print_buffer();
-
-    b_write = increase(b_write);
-    dma.clearInterrupt();
+    ibuf=(ibuf+1)&3;
+    dma->destinationBuffer(adcbuffer[ibuf],512); //sizeof(adcbuffer[ibuf])
+    dma->enable();
+    dma->clearInterrupt();
+    //Serial.println("call dma isr");
 }
-
-// increases the pointer modulo 2*size-1
-uint16_t increase(uint16_t p) {
-    return (p + 1)&(b_size-1);
-}
-
-//bool isFull() {
-//    return (b_end == (b_start ^ b_size));
-//}
-
 
 // convert pin name to hardware pin
 // teensy 3.1 only
+
+#if defined(__MK20DX256__)
 
 int 
 get_pin(int pin)
@@ -195,4 +185,6 @@ int index;
 
 return channel2sc1a[index];
 
-} 
+}   // get_pin()
+
+#endif
