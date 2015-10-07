@@ -14,6 +14,7 @@ ADC *adc = new ADC(); // adc object
 DMAChannel* dma0 = new DMAChannel(false);
 DMAChannel* dma1 = new DMAChannel(false);
 
+
 const uint16_t ChannelsCfg [] =  { 0x46, 0x47, 0x4F, 0x44 };
 const int ledPin = 13;
 
@@ -23,6 +24,29 @@ volatile int ibuf;
 volatile int obuf;
 
 void setup() {
+  // initialize the digital pin as an output.
+  pinMode(ledPin, OUTPUT);
+
+  delay(500); 
+  ibuf = 0;
+  obuf = 0;
+
+   
+  setup_adc();
+  setup_dma(); 
+  
+
+}
+
+void loop() {
+  
+  // clear buffer
+  for (int i = 0; i < NO_BUFFERS; ++i){
+    for (int j = 0; j < BUF_SIZE; ++j){
+      adcbuffer[i][j] = 50000;
+    }
+  }
+
   char password[] = "start";
   uint8_t index = 0;
   char c = '0';
@@ -43,64 +67,25 @@ void setup() {
     delay(1);
   }
   Serial.println("Ready");
-  
-  // initialize the digital pin as an output.
-  pinMode(ledPin, OUTPUT);
-  
-
-}
-
-void loop() {
-  
-  // clear buffer
-  for (int i = 0; i < NO_BUFFERS; ++i){
-    for (int j = 0; j < BUF_SIZE; ++j){
-      adcbuffer[i][j] = 50000;
-    }
-  }
 
   digitalWrite(ledPin, HIGH);   // set the LED on
   delay(500);                  // wait for a second
   digitalWrite(ledPin, LOW);    // set the LED off
   delay(500); 
- 
-  Serial.println("setup");
-  delay(500); 
-  ibuf = 0;
-  obuf = 0;
-
-   
-  setup_adc();
-  setup_dma(); 
-  Serial.println("dma0 Channel");
-  print_config(dma0);
-  Serial.println("\ndma1 Channel");
-  print_config(dma1);
-  Serial.println("\ndma1 Channel");
-  print_config(dma1);
-  Serial.println("\ndma1 Channel");
-  print_config(dma1);
-//  Serial.println("dma set");
-//  delay(1000); ;
-//  Serial.println("adc set");
-//  delay(1000);  
   
+  Serial.println("Start");
+ 
   for (int i = 0; i < 512; ++i){
     while(obuf==ibuf);
-    //Serial.write(0x00000000);
-    //Serial.write(0xFFFFFFFF);
-    //Serial.write(0x00000000);
-    //Serial.write((uint8_t *)adcbuffer[obuf],512); 
-    Serial.println(adcbuffer[obuf][0]); 
+    Serial.write((uint8_t *)adcbuffer[obuf],512); 
     //Serial.println("read buffer and send data");
-    //Serial.write(0x00000000);
-    //Serial.write(0xFFFFFFFF);
-    //Serial.print(0x00000000);
     obuf=(obuf+1)&3;
   }
-  
-  for (;;) {}
 
+  digitalWrite(ledPin, HIGH);   // set the LED on
+  delay(500);                  // wait for a second
+  digitalWrite(ledPin, LOW);    // set the LED off
+  delay(500);   
 }
 
 void setup_dma() {
@@ -114,16 +99,6 @@ void setup_dma() {
 //  analogRead(pin);
 //  delay(1);
 
-#if 0
-  // set the programmable delay block to trigger DMA requests
-  SIM_SCGC6 |= SIM_SCGC6_PDB; // enable PDB clock
-  PDB0_IDLY = 0; // interrupt delay register
-  PDB0_MOD = PDB_PERIOD; // modulus register, sets period
-  PDB0_SC = PDB_CONFIG | PDB_SC_LDOK; // load registers from buffers
-  PDB0_SC = PDB_CONFIG | PDB_SC_SWTRIG; // reset and restart
-  PDB0_CH0C1 = 0x0101; // channel n control register?
-#endif
-
   dma0->begin(true);              // allocate the DMA channel first
   dma0->TCD->SADDR = &ADC0_RA;    // where to read from
   dma0->TCD->SOFF = 0;            // source increment each transfer
@@ -132,9 +107,9 @@ void setup_dma() {
   dma0->TCD->SLAST = 0;
   dma0->TCD->DADDR = &adcbuffer[0][0];// where to write to
   dma0->TCD->DOFF = 2; 
-  dma0->TCD->DLASTSGA = -256;
-  dma0->TCD->BITER = 128;
-  dma0->TCD->CITER = 128;    
+  dma0->TCD->DLASTSGA = -512;
+  dma0->TCD->BITER = 256;
+  dma0->TCD->CITER = 256;    
   dma0->triggerAtHardwareEvent(DMAMUX_SOURCE_ADC0);
   dma0->disableOnCompletion();    // require restart in code
   dma0->interruptAtCompletion();
@@ -153,8 +128,6 @@ void setup_dma() {
   dma1->TCD->DOFF = 0;
   dma1->triggerAtTransfersOf(*dma0);
   dma1->triggerAtCompletionOf(*dma0);
-  dma1->interruptAtCompletion();
-  dma1->attachInterrupt(dma1_isr);
 
   dma0->enable();
   dma1->enable();
@@ -192,31 +165,20 @@ void setup_adc() {
   //adc->setAveraging(32); // set number of averages
   adc->setResolution(16); // set bits of resolution
   adc->setReference(INTERNAL);
+  //adc->setReference(DEFAULT);
+  adc->adc0->enablePGA(64);
   adc->adc0->enableDMA(); //ADC0_SC2 |= ADC_SC2_DMAEN;  // using software trigger, ie writing to ADC0_SC1A
-  //adc->adc0->startContinuous(pin);//  ADC0_SC3 |= ADC_SC3_ADCO;  ADC0_SC1A = get_pin(pin);   // set to hardware input channel
   ADC0_SC1A = ChannelsCfg[3];
   
 } 
 
 
 void dma0_isr(void) {
-    Serial.println("call dma0 isr");
     ibuf=(ibuf+1)&3;
-    //dma0->destinationBuffer(adcbuffer[ibuf],512); //sizeof(adcbuffer[ibuf])
     dma0->TCD->DADDR = &adcbuffer[ibuf][0];
     dma0->clearInterrupt();
     dma0->enable();
 }
-
-void dma1_isr(void) {
-    dma1->clearInterrupt();
-    //Serial.println("call dma1 isr");
-//    Serial.println(dma0->TCD->CITER);
-//    Serial.println(dma1->TCD->CITER);
-//    Serial.println((uint32_t)dma0->TCD->DADDR);
-    
-}
-
 
 // convert pin name to hardware pin
 // teensy 3.1 only
@@ -256,7 +218,7 @@ int index;
 
 return channel2sc1a[index];
 
-}   // get_pin()
+}  
 
 #endif
 

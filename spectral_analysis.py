@@ -106,19 +106,7 @@ def plot_angle(filename,window,overlap):
 mpl.rcParams['figure.max_open_warning'] = 40
 
 for i in range(3):
-	plot_spectogram("testdata/tim0_ch3.raw",128*(2**i),64*(2**i))
-
-for i in range(3):
-	plot_spectogram("testdata/tim1_ch3.raw",128*(2**i),64*(2**i))
-
-for i in range(3):
-	plot_spectogram("testdata/tim2_ch3.raw",128*(2**i),64*(2**i))
-
-for i in range(3):
-	plot_spectogram("testdata/tim3_ch3.raw",128*(2**i),64*(2**i))
-
-for i in range(3):
-	plot_spectogram("testdata/tim4_ch3.raw",128*(2**i),64*(2**i))
+	plot_spectogram("testdata/elias3_ch3.raw",128*(2**i),64*(2**i))
 
 
 raw_input("Press Enter to continue...")
