@@ -73,7 +73,7 @@ def plot_spectogram(filename,window,overlap):
 	#print magnitude.max().max()
 	#print magnitude.min().min()
 	plt.figure("Magnitude_w"+str(window)+"_o"+str(overlap)+" "+filename)
-	im1 = plt.imshow(magnitude[:,window-1-(window/10):window-1].transpose(),vmin=100 , vmax=1000, aspect='auto')
+	im1 = plt.imshow(magnitude[:,window-1-(window/10):window-1].transpose(),vmin=100 , vmax=1000, aspect='auto', interpolation='none')
 	plt.colorbar(im1, orientation='horizontal')
 	plt.show()
 
@@ -82,7 +82,7 @@ def plot_spectogram(filename,window,overlap):
 	#print angle.max().max()
 	#print angle.min().min()
 	plt.figure("Angle_w"+str(window)+"_o"+str(overlap)+" "+filename)
-	im2 = plt.imshow(angle.transpose(), aspect='auto')
+	im2 = plt.imshow(angle.transpose(), aspect='auto', interpolation='none')
 	plt.colorbar(im2, orientation='horizontal')
 	plt.show()
 
